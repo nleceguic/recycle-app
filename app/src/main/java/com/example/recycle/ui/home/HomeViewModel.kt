@@ -1,5 +1,7 @@
 package com.example.recycle.ui.home
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import com.example.recycle.data.fake.FakeContainerDataSource
 import com.example.recycle.data.fake.FakeDisposalRepository
@@ -12,6 +14,7 @@ class HomeViewModel : ViewModel() {
     private var nearbyContainers: List<Container> = emptyList()
 
     // Detección de contenedores cercanos.
+    @RequiresApi(Build.VERSION_CODES.O)
     fun detectNearbyContainers(userLatitude: Double, userLongitude: Double): List<Container> {
         nearbyContainers = FakeContainerDataSource.getNearbyContainers(
             latitude = userLatitude, longitude = userLongitude
@@ -25,6 +28,7 @@ class HomeViewModel : ViewModel() {
     }
 
     // Intenta abrir el contenedor seleccionado.
+    @RequiresApi(Build.VERSION_CODES.O)
     fun openContainer(container: Container): OpenResult {
         val event: DisposalEvent = FakeDisposalRepository.tryDispose(
             containerId = container.id,

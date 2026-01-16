@@ -2,6 +2,7 @@ package com.example.recycle.ui.home
 
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -11,6 +12,7 @@ import com.example.recycle.ui.history.HistoryActivity
 import com.example.recycle.ui.map.MapActivity
 import com.example.recycle.ui.report.ReportActivity
 import androidx.activity.viewModels
+import androidx.annotation.RequiresApi
 import com.example.recycle.data.model.FailureReason
 import com.example.recycle.data.model.WasteType
 
@@ -18,6 +20,7 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val viewModel: HomeViewModel by viewModels()
 
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
