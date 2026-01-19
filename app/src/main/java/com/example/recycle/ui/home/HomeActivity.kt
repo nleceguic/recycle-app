@@ -1,6 +1,7 @@
 package com.example.recycle.ui.home
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
@@ -10,6 +11,7 @@ import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import com.example.recycle.databinding.ActivityMainBinding
 import android.content.IntentSender
+import android.util.Log
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.registerForActivityResult
 import com.google.android.gms.location.LocationRequest
@@ -17,6 +19,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.LocationSettingsRequest
 import com.google.android.gms.location.Priority
 import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.FusedLocationProviderClient
 
 
 class HomeActivity : AppCompatActivity() {
@@ -26,14 +29,9 @@ class HomeActivity : AppCompatActivity() {
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
-        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
         when {
             fineGranted -> {
                 onLocationPermissionGranted(highAccuracy = true)
-            }
-
-            coarseGranted -> {
-                onLocationPermissionGranted(highAccuracy = false)
             }
 
             else -> {
@@ -50,11 +48,13 @@ class HomeActivity : AppCompatActivity() {
             onLocationRejected()
         }
     }
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         checkLocationPermissions()
 
@@ -76,13 +76,13 @@ class HomeActivity : AppCompatActivity() {
     private fun requestLocationPermissions() {
         locationPermissionLauncher.launch(
             arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION
+                Manifest.permission.ACCESS_FINE_LOCATION
             )
         )
     }
 
     private fun hasLocationPermissions(): Boolean {
-        return hasFineLocationPermission() || hasCoarseLocationPermission()
+        return hasFineLocationPermission()
     }
 
     private fun hasFineLocationPermission(): Boolean {
@@ -91,14 +91,24 @@ class HomeActivity : AppCompatActivity() {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun hasCoarseLocationPermission(): Boolean {
-        return ContextCompat.checkSelfPermission(
-            this, Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
+    private fun onLocationPermissionGranted(highAccuracy: Boolean) {
+        getUserLocation()
     }
 
-    private fun onLocationPermissionGranted(highAccuracy: Boolean) {
+    @SuppressLint("MissingPermission")
+    private fun getUserLocation() {
+        fusedLocationClient.getCurrentLocation(
+            Priority.PRIORITY_HIGH_ACCURACY, null
+        ).addOnSuccessListener { location ->
+            if (location != null) {
+                val lat = location.latitude
+                val lon = location.longitude
 
+                Log.d("LOCATION", "Lat: $lat, Lon: $lon")
+            } else {
+                Toast.makeText(this, "No se pudo obtener la ubicacion", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun onLocationPermissionDenied() {
