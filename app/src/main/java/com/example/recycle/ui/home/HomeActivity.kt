@@ -1,51 +1,55 @@
 package com.example.recycle.ui.home
 
 import android.Manifest
-import android.content.Context
-import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.LocationManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
-import android.provider.Settings
 import com.example.recycle.databinding.ActivityMainBinding
+import android.content.IntentSender
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.registerForActivityResult
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.Priority
+import com.google.android.gms.common.api.ResolvableApiException
+
 
 class HomeActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private val viewModel: HomeViewModel by viewModels()
-    private val locationPermissionLauncher =
-        registerForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()
-        ) { permissions ->
-            val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
-            val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
-            when {
-                fineGranted -> {
-                    onLocationPermissionGranted(highAccuracy = true)
-                }
-
-                coarseGranted -> {
-                    onLocationPermissionGranted(highAccuracy = false)
-                }
-
-                else -> {
-                    onLocationPermissionDenied()
-                }
+    private val locationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        val coarseGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+        when {
+            fineGranted -> {
+                onLocationPermissionGranted(highAccuracy = true)
             }
 
-            binding.openContainerButton.setOnClickListener {
-                if (!isLocationEnabled(this)) {
-                    val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
-                    startActivity(intent)
-                } else {
+            coarseGranted -> {
+                onLocationPermissionGranted(highAccuracy = false)
+            }
 
-                }
+            else -> {
+                onLocationPermissionDenied()
             }
         }
+    }
+    private val locationSettingsLauncher = registerForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            onLocationEnabled()
+        } else {
+            onLocationRejected()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,6 +57,10 @@ class HomeActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         checkLocationPermissions()
+
+        binding.openContainerButton.setOnClickListener {
+            checkLocationSettings()
+        }
     }
 
     private fun checkLocationPermissions() {
@@ -68,8 +76,7 @@ class HomeActivity : AppCompatActivity() {
     private fun requestLocationPermissions() {
         locationPermissionLauncher.launch(
             arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION
+                Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION
             )
         )
     }
@@ -80,15 +87,13 @@ class HomeActivity : AppCompatActivity() {
 
     private fun hasFineLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.ACCESS_FINE_LOCATION
+            this, Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun hasCoarseLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(
-            this,
-            Manifest.permission.ACCESS_COARSE_LOCATION
+            this, Manifest.permission.ACCESS_COARSE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
     }
 
@@ -98,16 +103,46 @@ class HomeActivity : AppCompatActivity() {
 
     private fun onLocationPermissionDenied() {
         Toast.makeText(
-            this,
-            "Permisos de ubicación denegados",
-            Toast.LENGTH_LONG
+            this, "Permisos de ubicación denegados", Toast.LENGTH_LONG
         ).show()
     }
 
-    fun isLocationEnabled(context: Context): Boolean {
-        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    fun checkLocationSettings() {
+        val locationRequest = LocationRequest.Builder(
+            Priority.PRIORITY_BALANCED_POWER_ACCURACY, 1000
+        ).build()
 
-        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
-                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+        val settingsRequest = LocationSettingsRequest.Builder().addLocationRequest(locationRequest)
+            .setAlwaysShow(true).build()
+
+        val client = LocationServices.getSettingsClient(this)
+
+        client.checkLocationSettings(settingsRequest).addOnSuccessListener {
+            onLocationEnabled()
+        }.addOnFailureListener { exception ->
+            if (exception is ResolvableApiException) {
+                try {
+                    val intentSenderRequest =
+                        IntentSenderRequest.Builder(exception.resolution).build()
+                    locationSettingsLauncher.launch(intentSenderRequest)
+                } catch (e: IntentSender.SendIntentException) {
+                    e.printStackTrace()
+                }
+            } else {
+                onLocationRejected()
+            }
+        }
+    }
+
+    private fun onLocationEnabled() {
+        Toast.makeText(
+            this, "Ubicación activada", Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    private fun onLocationRejected() {
+        Toast.makeText(
+            this, "La app necesita la ubicación para funcionar", Toast.LENGTH_LONG
+        ).show()
     }
 }
